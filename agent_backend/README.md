@@ -35,7 +35,19 @@ The Agent Backend holds the **Gemini API key** but never the TMDB API key — th
 ### POST /chat — Response
 ```json
 {
-  "message": { "role": "assistant", "content": "Se7en is the one..." },
+  "message": {
+    "role": "assistant",
+    "content": "Se7en is the one...",
+    "movies": [
+      {
+        "id": 807,
+        "title": "Se7en",
+        "year": 1995,
+        "poster_url": "https://image.tmdb.org/t/p/w500/...",
+        "rating": 8.3
+      }
+    ]
+  },
   "tool_calls": [
     {
       "tool": "discover_movies",
@@ -46,14 +58,19 @@ The Agent Backend holds the **Gemini API key** but never the TMDB API key — th
 }
 ```
 
+> `movies` is a list of structured movie data extracted from tool results. Only movies mentioned in the prose are included. Defaults to `[]` when no movies are present.
+
 ### SSE Streaming
 Add `Accept: text/event-stream` to stream the response token-by-token:
 ```
 data: {"type":"token","content":"Se7en"}
 data: {"type":"token","content":" is the one..."}
+data: {"type":"movies","movies":[{"id":807,"title":"Se7en","year":1995,"poster_url":"https://image.tmdb.org/t/p/w500/...","rating":8.3}]}
 data: {"type":"tool_calls","tool_calls":[...]}
 data: {"type":"done"}
 ```
+
+> The `movies` event is emitted after the final token and before `tool_calls`. It is omitted when no movies are present.
 
 ---
 
@@ -204,7 +221,8 @@ agent_backend/
 │   ├── logging.py       # structlog configuration
 │   ├── middleware.py     # Request-ID injection, structured logging middleware
 │   └── agent/
-│       └── prompt.py    # SYSTEM_PROMPT + build_system_prompt()
+│       ├── prompt.py            # SYSTEM_PROMPT + build_system_prompt()
+│       └── movie_extractor.py   # Deterministic movie extraction from tool results
 ├── tests/
 │   ├── unit/            # Unit + property tests (no live dependencies)
 │   └── integration/     # Integration tests (mocked LLM + MCP)

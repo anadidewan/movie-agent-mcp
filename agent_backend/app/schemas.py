@@ -63,11 +63,22 @@ class ToolCall(BaseModel):
     output_summary: str  # 1-2 human-readable sentences, never raw tool output
 
 
+class Movie(BaseModel):
+    """A single movie extracted from tool call results."""
+
+    id: int
+    title: str
+    year: int | None = None
+    poster_url: str | None = None
+    rating: float | None = None
+
+
 class AssistantMessage(BaseModel):
     """The assistant's reply message."""
 
     role: Literal["assistant"] = "assistant"
     content: str
+    movies: list[Movie] = []
 
 
 class ChatResponse(BaseModel):

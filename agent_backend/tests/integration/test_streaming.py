@@ -202,3 +202,218 @@ async def test_property10_sse_and_non_sse_tool_calls_are_equivalent(
     for (ns_tool, ns_input), (s_tool, s_input) in zip(non_streaming_calls, streaming_calls):
         assert ns_tool == s_tool, f"Tool name mismatch: {ns_tool!r} vs {s_tool!r}"
         assert ns_input == s_input, f"Tool input mismatch: {ns_input!r} vs {s_input!r}"
+
+
+# ---------------------------------------------------------------------------
+# Helpers for SSE event collection
+# ---------------------------------------------------------------------------
+
+
+async def collect_all_sse_events(executor, messages) -> list[dict]:
+    """Collect all parsed SSE events from the stream."""
+    events = []
+    async for chunk in astream_run(executor, messages):
+        if chunk.startswith("data: "):
+            events.append(json.loads(chunk[6:].strip()))
+    return events
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — Task 6.2: SSE movies event
+# ---------------------------------------------------------------------------
+
+MULTI_MOVIE_OUTPUT = json.dumps({
+    "results": [
+        {"id": 550, "title": "Fight Club", "year": 1999, "poster_url": "https://image.tmdb.org/t/p/w500/fc.jpg", "rating": 8.4},
+        {"id": 807, "title": "Se7en", "year": 1995, "poster_url": "https://image.tmdb.org/t/p/w500/s7.jpg", "rating": 8.3},
+        {"id": 13, "title": "Forrest Gump", "year": 1994, "rating": 8.8},
+    ]
+})
+
+SSE_FINAL_OUTPUT_WITH_MOVIES = (
+    "I'd recommend Fight Club and Se7en — both are dark, gripping thrillers."
+)
+
+
+@pytest.mark.asyncio
+async def test_sse_movies_event_emitted_with_correct_order():
+    """
+    SSE movies event is emitted after the last token event and before
+    the tool_calls event when movies are present.
+
+    Validates: Requirements 10.4
+    """
+    steps = [
+        ("search_movies", {"query": "dark thrillers"}, MULTI_MOVIE_OUTPUT),
+    ]
+    executor = make_mock_executor(steps, final_output=SSE_FINAL_OUTPUT_WITH_MOVIES)
+    messages = make_messages()
+
+    events = await collect_all_sse_events(executor, messages)
+    event_types = [e["type"] for e in events]
+
+    # movies event must be present
+    assert "movies" in event_types, (
+        f"Expected 'movies' event in stream, got types: {event_types}"
+    )
+
+    # Verify ordering: token(s) → movies → tool_calls → done
+    last_token_idx = max(i for i, t in enumerate(event_types) if t == "token")
+    movies_idx = event_types.index("movies")
+    tool_calls_idx = event_types.index("tool_calls")
+    done_idx = event_types.index("done")
+
+    assert last_token_idx < movies_idx, (
+        f"movies event (idx={movies_idx}) should come after last token (idx={last_token_idx})"
+    )
+    assert movies_idx < tool_calls_idx, (
+        f"movies event (idx={movies_idx}) should come before tool_calls (idx={tool_calls_idx})"
+    )
+    assert tool_calls_idx < done_idx, (
+        f"tool_calls (idx={tool_calls_idx}) should come before done (idx={done_idx})"
+    )
+
+
+@pytest.mark.asyncio
+async def test_sse_movies_event_payload_contains_correct_data():
+    """
+    The movies SSE event payload contains correct movie data matching
+    only movies mentioned in the LLM output.
+
+    Validates: Requirements 10.4
+    """
+    steps = [
+        ("search_movies", {"query": "dark thrillers"}, MULTI_MOVIE_OUTPUT),
+    ]
+    executor = make_mock_executor(steps, final_output=SSE_FINAL_OUTPUT_WITH_MOVIES)
+    messages = make_messages()
+
+    events = await collect_all_sse_events(executor, messages)
+    movies_events = [e for e in events if e["type"] == "movies"]
+
+    # Exactly one movies event
+    assert len(movies_events) == 1
+    movies_payload = movies_events[0]
+
+    assert "movies" in movies_payload
+    movies = movies_payload["movies"]
+    assert isinstance(movies, list)
+    assert len(movies) > 0
+
+    # Each movie has required fields
+    for movie in movies:
+        assert "id" in movie
+        assert "title" in movie
+        assert isinstance(movie["id"], int)
+        assert isinstance(movie["title"], str)
+
+    # Only movies mentioned in the output are included
+    movie_titles = {m["title"] for m in movies}
+    assert "Fight Club" in movie_titles
+    assert "Se7en" in movie_titles
+    # Forrest Gump is NOT mentioned in SSE_FINAL_OUTPUT_WITH_MOVIES
+    assert "Forrest Gump" not in movie_titles
+
+    # Verify specific movie data
+    fight_club = next(m for m in movies if m["title"] == "Fight Club")
+    assert fight_club["id"] == 550
+    assert fight_club["year"] == 1999
+    assert fight_club["rating"] == 8.4
+    assert fight_club["poster_url"] == "https://image.tmdb.org/t/p/w500/fc.jpg"
+
+
+@pytest.mark.asyncio
+async def test_sse_no_movies_event_when_no_movies_present():
+    """
+    When no movies are extracted (none mentioned in LLM output),
+    no movies SSE event is emitted.
+
+    Validates: Requirements 10.4
+    """
+    steps = [
+        ("search_movies", {"query": "comedies"}, MULTI_MOVIE_OUTPUT),
+    ]
+    # LLM output does not mention any movie titles from the tool results
+    executor = make_mock_executor(
+        steps,
+        final_output="I couldn't find anything matching your request. Try a different query.",
+    )
+    messages = make_messages()
+
+    events = await collect_all_sse_events(executor, messages)
+    event_types = [e["type"] for e in events]
+
+    assert "movies" not in event_types, (
+        f"Expected no 'movies' event when no movies are mentioned, got types: {event_types}"
+    )
+    # Other events should still be present
+    assert "token" in event_types
+    assert "tool_calls" in event_types
+    assert "done" in event_types
+
+
+@pytest.mark.asyncio
+async def test_sse_no_movies_event_when_no_movie_tools_invoked():
+    """
+    When no movie-returning tools are invoked, no movies event is emitted.
+
+    Validates: Requirements 10.4
+    """
+    steps = [
+        ("get_movie_details", {"movie_id": 550}, '{"title": "Fight Club", "year": 1999}'),
+    ]
+    executor = make_mock_executor(
+        steps,
+        final_output="Fight Club (1999) is a great movie directed by David Fincher.",
+    )
+    messages = make_messages()
+
+    events = await collect_all_sse_events(executor, messages)
+    event_types = [e["type"] for e in events]
+
+    assert "movies" not in event_types, (
+        f"Expected no 'movies' event when no movie-returning tools invoked, got types: {event_types}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_sse_movies_event_with_multiple_tool_calls():
+    """
+    Movies from multiple movie-returning tool calls are combined,
+    deduplicated, and emitted in a single movies event.
+
+    Validates: Requirements 10.4
+    """
+    search_output = json.dumps({
+        "results": [
+            {"id": 550, "title": "Fight Club", "year": 1999, "rating": 8.4},
+        ]
+    })
+    trending_output = json.dumps({
+        "results": [
+            {"id": 550, "title": "Fight Club", "year": 1999, "rating": 8.4},
+            {"id": 438631, "title": "Dune", "year": 2021, "rating": 7.9},
+        ]
+    })
+    steps = [
+        ("search_movies", {"query": "fight club"}, search_output),
+        ("get_trending", {"window": "week"}, trending_output),
+    ]
+    executor = make_mock_executor(
+        steps,
+        final_output="Fight Club and Dune are both excellent films worth watching.",
+    )
+    messages = make_messages()
+
+    events = await collect_all_sse_events(executor, messages)
+    movies_events = [e for e in events if e["type"] == "movies"]
+
+    assert len(movies_events) == 1
+    movies = movies_events[0]["movies"]
+
+    # Both movies mentioned, deduplicated by id
+    movie_ids = [m["id"] for m in movies]
+    assert 550 in movie_ids
+    assert 438631 in movie_ids
+    # No duplicate ids
+    assert len(movie_ids) == len(set(movie_ids))

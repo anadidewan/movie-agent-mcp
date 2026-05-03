@@ -219,6 +219,101 @@ async def test_chat_output_summary_is_human_readable():
     assert "Fight Club" in summary or "2" in summary or "result" in summary.lower()
 
 
+# ---------------------------------------------------------------------------
+# Integration test — Task 6.1: JSON /chat movies field
+# ---------------------------------------------------------------------------
+
+
+MULTI_MOVIE_TOOL_OUTPUT = json.dumps({
+    "results": [
+        {"id": 550, "title": "Fight Club", "year": 1999, "rating": 8.4},
+        {"id": 807, "title": "Se7en", "year": 1995, "rating": 8.3},
+        {"id": 13, "title": "Forrest Gump", "year": 1994, "rating": 8.8},
+    ]
+})
+
+FINAL_RESPONSE_WITH_MOVIES = (
+    "I'd recommend Fight Club and Se7en — both are dark, gripping thrillers "
+    "directed by David Fincher."
+)
+
+
+@pytest.mark.asyncio
+async def test_chat_json_movies_field_present():
+    """
+    Integration test: POST /chat JSON response includes message.movies
+    with structured movie data for movies mentioned in the prose.
+
+    Validates: Requirements 10.3
+    """
+    steps = [
+        ("search_movies", {"query": "dark thrillers"}, MULTI_MOVIE_TOOL_OUTPUT),
+    ]
+    executor = make_mock_executor(steps, final_output=FINAL_RESPONSE_WITH_MOVIES)
+    app = make_app_with_executor(executor)
+
+    client = TestClient(app)
+    response = client.post(
+        "/chat",
+        json={"messages": [{"role": "user", "content": "Recommend dark thrillers"}]},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # movies field is present and non-empty
+    movies = data["message"]["movies"]
+    assert isinstance(movies, list)
+    assert len(movies) > 0
+
+    # Each movie has required id and title fields
+    for movie in movies:
+        assert "id" in movie
+        assert "title" in movie
+        assert isinstance(movie["id"], int)
+        assert isinstance(movie["title"], str)
+
+    # Movies are only those mentioned in the response content
+    content_lower = data["message"]["content"].lower()
+    for movie in movies:
+        assert movie["title"].lower() in content_lower, (
+            f"Movie '{movie['title']}' not mentioned in response content"
+        )
+
+    # Specifically: Fight Club and Se7en are mentioned, Forrest Gump is not
+    movie_titles = {m["title"] for m in movies}
+    assert "Fight Club" in movie_titles
+    assert "Se7en" in movie_titles
+    assert "Forrest Gump" not in movie_titles
+
+
+@pytest.mark.asyncio
+async def test_chat_json_movies_empty_when_none_mentioned():
+    """
+    When the LLM output does not mention any movie titles from tool results,
+    message.movies should be an empty list.
+
+    Validates: Requirements 10.3
+    """
+    steps = [
+        ("search_movies", {"query": "comedies"}, MOCK_TOOL_OUTPUT),
+    ]
+    executor = make_mock_executor(
+        steps,
+        final_output="I couldn't find anything matching your request. Try a different query.",
+    )
+    app = make_app_with_executor(executor)
+
+    client = TestClient(app)
+    response = client.post(
+        "/chat",
+        json={"messages": [{"role": "user", "content": "Find comedies"}]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"]["movies"] == []
+
+
 @pytest.mark.asyncio
 async def test_chat_mcp_unavailable_returns_503():
     """MCPUnavailableError during run → HTTP 503."""

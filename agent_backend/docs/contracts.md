@@ -37,7 +37,16 @@ Supports two response modes:
 {
   "message": {
     "role": "assistant",
-    "content": "If you liked Se7en, try Zodiac — another Fincher masterpiece."
+    "content": "If you liked Se7en, try Zodiac — another Fincher masterpiece.",
+    "movies": [
+      {
+        "id": 539,
+        "title": "Zodiac",
+        "year": 2007,
+        "poster_url": "https://image.tmdb.org/t/p/w500/...",
+        "rating": 7.7
+      }
+    ]
   },
   "tool_calls": [
     {
@@ -52,6 +61,7 @@ Supports two response modes:
 > `tool_calls` is an ordered list of every tool invocation during the run.
 > `output_summary` is a 1-2 sentence human-readable summary — never raw JSON.
 > When no tools are invoked, `tool_calls` is an empty array `[]`.
+> `movies` is a `list[Movie]` of structured movie data extracted from tool results. Defaults to `[]` when no movies are present. Each `Movie` has fields: `id` (int), `title` (str), `year` (int | null), `poster_url` (str | null), `rating` (float | null).
 
 ### SSE Streaming Mode
 
@@ -62,6 +72,7 @@ Set `Accept: text/event-stream` to receive the response token-by-token.
 | Event type | Payload | When emitted |
 |---|---|---|
 | `token` | `{"type": "token", "content": "string"}` | Each LLM output chunk |
+| `movies` | `{"type": "movies", "movies": [...]}` | After final token, before tool_calls |
 | `tool_calls` | `{"type": "tool_calls", "tool_calls": [...]}` | Once, after all tokens |
 | `error` | `{"type": "error", "code": "string", "message": "string"}` | On agent error |
 | `done` | `{"type": "done"}` | Final event, signals stream end |
@@ -71,6 +82,8 @@ Set `Accept: text/event-stream` to receive the response token-by-token.
 data: {"type":"token","content":"If you liked"}
 
 data: {"type":"token","content":" Se7en, try Zodiac."}
+
+data: {"type":"movies","movies":[{"id":539,"title":"Zodiac","year":2007,"poster_url":"https://image.tmdb.org/t/p/w500/...","rating":7.7}]}
 
 data: {"type":"tool_calls","tool_calls":[{"tool":"get_recommendations","input":{"movie_id":807},"output_summary":"Found 20 results. Top: Zodiac, Prisoners."}]}
 
@@ -189,3 +202,4 @@ All error responses use this shape:
 - `GEMINI_API_KEY` and `MCP_BASE_URL` are never included in any response body, header, or log output.
 - MCP wrapper tool errors (4xx/5xx from the wrapper) are **not** surfaced as HTTP errors to the frontend. They are translated into agent-readable strings so the LLM can reason about them and respond gracefully.
 - The service refuses to start if `GEMINI_API_KEY` or `MCP_BASE_URL` are missing, or if the MCP wrapper is unreachable at startup.
+- The `movies` field in `AssistantMessage` and the `movies` SSE event are populated by a deterministic post-processor that extracts structured movie data from tool call results. Only movies whose titles appear (case-insensitive substring match) in the assistant's prose response are included. Movies are ordered by their first mention position in the prose, deduplicated by `id`, and capped at 5 per response. The LLM does not control which movies appear as cards — the post-processor derives them entirely from tool outputs and the prose content.

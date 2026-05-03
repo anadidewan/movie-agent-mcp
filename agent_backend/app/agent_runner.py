@@ -23,6 +23,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field, create_model
 from pydantic.fields import FieldInfo
 
+from app.agent.movie_extractor import extract_movies
 from app.agent.prompt import build_system_prompt
 from app.mcp_client import MCPClient
 from app.schemas import AssistantMessage, ChatResponse, ToolCall, ToolDescriptor
@@ -354,8 +355,13 @@ async def run(executor: AgentExecutor, messages: list[Any]) -> ChatResponse:
 
     logger.debug("agent_run_complete", tool_calls_count=len(tool_calls), output_length=len(result.get("output", "")))
 
+    movies = extract_movies(
+        result.get("intermediate_steps", []),
+        result.get("output", ""),
+    )
+
     return ChatResponse(
-        message=AssistantMessage(content=result.get("output", "")),
+        message=AssistantMessage(content=result.get("output", ""), movies=movies),
         tool_calls=tool_calls,
     )
 
@@ -420,6 +426,16 @@ async def astream_run(
         yield f"data: {payload}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
+
+    # Emit movies event (if any) before tool call trace
+    movies = extract_movies(intermediate_steps, full_output)
+
+    if movies:
+        movies_payload = json.dumps({
+            "type": "movies",
+            "movies": [m.model_dump() for m in movies],
+        })
+        yield f"data: {movies_payload}\n\n"
 
     # Emit tool call trace
     tool_calls = [

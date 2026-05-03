@@ -260,9 +260,18 @@ class ToolCall(BaseModel):
     input: dict[str, Any]
     output_summary: str
 
+class Movie(BaseModel):
+    """A single movie extracted from tool call results."""
+    id: int
+    title: str
+    year: int | None = None
+    poster_url: str | None = None
+    rating: float | None = None
+
 class AssistantMessage(BaseModel):
     role: Literal["assistant"] = "assistant"
     content: str
+    movies: list[Movie] = []
 
 class ChatResponse(BaseModel):
     message: AssistantMessage
@@ -309,7 +318,8 @@ Each SSE event is a JSON-encoded string on the `data:` field, followed by `\n\n`
 | Event type | Payload shape | When emitted |
 |---|---|---|
 | `token` | `{"type": "token", "content": "string"}` | Each LLM output token chunk |
-| `tool_calls` | `{"type": "tool_calls", "tool_calls": [ToolCall]}` | Once, after all tokens |
+| `movies` | `{"type": "movies", "movies": [Movie]}` | Once after final token, before `tool_calls` (only if movies are present) |
+| `tool_calls` | `{"type": "tool_calls", "tool_calls": [ToolCall]}` | Once, after all tokens (and after `movies` if present) |
 | `error` | `{"type": "error", "code": "string", "message": "string"}` | On agent error |
 | `done` | `{"type": "done"}` | Final event, signals stream end |
 
@@ -319,10 +329,14 @@ data: {"type":"token","content":"Here are"}
 
 data: {"type":"token","content":" some great action movies:"}
 
+data: {"type":"movies","movies":[{"id":76341,"title":"Mad Max: Fury Road","year":2015,"poster_url":"https://image.tmdb.org/t/p/w500/...","rating":7.6},{"id":245891,"title":"John Wick","year":2014,"poster_url":"https://image.tmdb.org/t/p/w500/...","rating":7.4}]}
+
 data: {"type":"tool_calls","tool_calls":[{"tool":"search_movies","input":{"query":"action"},"output_summary":"Found 20 action movies including Mad Max and John Wick."}]}
 
 data: {"type":"done"}
 ```
+
+The `movies` event is only emitted when the movie extractor finds at least one movie whose title appears in the LLM's prose. If no movies are extracted, the event is omitted entirely.
 
 ---
 
@@ -430,6 +444,77 @@ def summarise_output(raw_output: str) -> str:
 ```
 
 This keeps the summary deterministic and avoids a second round-trip to the LLM.
+
+---
+
+## Movie Extractor Module
+
+The `app/agent/movie_extractor.py` module is a deterministic post-processor that inspects intermediate tool call results from the agent run, filters to movies whose titles appear in the LLM's prose output, and returns them as structured `Movie` objects ordered by first mention position.
+
+### Public Interface
+
+```python
+MOVIE_TOOLS: frozenset[str] = frozenset({
+    "search_movies",
+    "discover_movies",
+    "get_recommendations",
+    "get_trending",
+})
+
+def extract_movies(
+    intermediate_steps: list[tuple[Any, str]],
+    llm_content: str,
+    max_count: int = 5,
+) -> list[Movie]:
+    """
+    Extract structured movie data from agent intermediate steps,
+    filtered to only movies whose titles appear in the LLM's prose.
+
+    Never raises — returns [] on any error.
+    """
+```
+
+### Internal Helpers
+
+```python
+def _parse_movies_from_output(raw_output: str) -> list[Movie]:
+    """Parse a single tool output string into a list of Movie objects.
+    Returns [] if the output is malformed, missing 'results', or contains an error envelope."""
+
+def _find_title_position(title: str, llm_content_lower: str) -> int:
+    """Return the index of the first case-insensitive occurrence of title.
+    Returns -1 if not found."""
+```
+
+### Algorithm
+
+The extraction follows a five-phase pipeline:
+
+1. **Collect candidates** — Iterate `intermediate_steps` in invocation order. For each step whose `action.tool` is in `MOVIE_TOOLS`, parse the raw JSON output, skip error envelopes and malformed entries, and map each entry in the `results` array to a `Movie` object.
+2. **Filter by title presence** — For each candidate movie, perform a case-insensitive substring search (`str.find()`) for the movie's title within the LLM content. Only movies whose titles appear in the prose are kept, along with their first-mention position.
+3. **Sort by first mention** — Sort the filtered movies by their first-mention position in the LLM content (earliest first), so card order matches reading order.
+4. **Deduplicate by ID** — Walk the sorted list and keep only the first occurrence of each movie `id` (first-seen wins).
+5. **Cap at max_count** — Truncate the result to at most `max_count` entries (default 5).
+
+The entire function body is wrapped in a `try/except` to guarantee it never raises exceptions to the caller — on any error it returns `[]`.
+
+### Wiring into `agent_runner.py`
+
+**JSON mode (`run()`):** After building `tool_calls` from `intermediate_steps`, call `extract_movies(intermediate_steps, output)` and attach the result to `AssistantMessage(content=..., movies=movies)`.
+
+**SSE mode (`astream_run()`):** After the streaming loop completes and the full LLM content has been accumulated, call `extract_movies(intermediate_steps, full_output)`. If the result is non-empty, emit a `movies` SSE event (`{"type": "movies", "movies": [...]}`) after the final token event and before the `tool_calls` event. If no movies are extracted, the event is omitted.
+
+### Design Decisions
+
+| Decision | Rationale |
+|---|---|
+| Title filtering uses case-insensitive substring match (`str.find()`) | Simple, predictable, avoids regex complexity and false negatives from word-boundary matching |
+| Ordering by first mention position in LLM content | Cards appear in the same order the user reads them in the prose |
+| Deduplication by `id` (first-seen wins) | A movie may appear in multiple tool results (e.g., search + recommendations); keep the first by mention order |
+| `max_count` defaults to 5 | Keeps the UI manageable; configurable per call for future flexibility |
+| `movies` SSE event emitted after tokens, before `tool_calls` | Frontend can render cards as soon as the prose is complete, before the tool trace arrives |
+| `extract_movies` accepts `list[tuple[Any, str]]` | Works with both real `AgentAction` and `_FakeAction` objects — only `.tool` attribute is accessed |
+| Entire function wrapped in try/except | Guarantees no exceptions propagate; malformed tool outputs are silently skipped |
 
 ---
 
