@@ -1,0 +1,16 @@
+.env
+.env.local
+.env.*.local
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+build/
+.next/
+.pytest_cache/
+.vscode/
+.idea/
+*.log
+pnpm-lock.yaml
