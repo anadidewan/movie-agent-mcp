@@ -107,8 +107,8 @@ Retrieve full details for a specific movie by its TMDB ID, including credits and
 }
 ```
 
-> `cast` contains at most 5 members in TMDB billing order.  
-> `director` is `null` if no director is found in the crew.  
+> `cast` contains at most 5 members in TMDB billing order.
+> `director` is `null` if no director is found in the crew.
 > `runtime` is `null` if TMDB does not provide it.
 
 **Errors:**
@@ -125,16 +125,16 @@ Retrieve full details for a specific movie by its TMDB ID, including credits and
 
 Browse movies using optional category filters. All filter fields are optional; omitting all returns unfiltered results.
 
-> `genre` accepts either a genre name (e.g. `"Action"`) or a numeric TMDB genre ID as a string (e.g. `"28"`). When a name is provided, the server resolves it to an ID automatically via the TMDB genre list. Resolution is case-insensitive. If the name does not match any known genre, a `NO_RESULTS` error is returned.
+> `genre` accepts either a genre name (e.g. `"Action"`) or a numeric TMDB genre ID as a string (e.g. `"28"`).
 
 **Request:**
 ```json
 {
-  "genre": "Action",    // optional, genre name or numeric ID string
-  "min_rating": 7.5,    // optional, number 0–10
-  "year_from": 2000,    // optional, integer
-  "year_to": 2020,      // optional, integer
-  "keywords": "space"   // optional, string
+  "genre": "Action",
+  "min_rating": 7.5,
+  "year_from": 2000,
+  "year_to": 2020,
+  "keywords": "space"
 }
 ```
 
@@ -157,9 +157,9 @@ Browse movies using optional category filters. All filter fields are optional; o
 **Errors:**
 | Code | HTTP Status | Condition |
 |---|---|---|
-| `VALIDATION_ERROR` | 400 | Invalid field type (e.g., string for `min_rating`) |
-| `NO_RESULTS` | 404 | `genre` name does not match any TMDB genre |
-| `UNPROCESSABLE_INPUT` | 422 | `year_from` is greater than `year_to` |
+| `VALIDATION_ERROR` | 400 | Invalid field type |
+| `NO_RESULTS` | 404 | Genre name does not match any TMDB genre |
+| `UNPROCESSABLE_INPUT` | 422 | `year_from` > `year_to` |
 | `RATE_LIMITED` | 429 | TMDB upstream rate limit reached |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
@@ -167,37 +167,26 @@ Browse movies using optional category filters. All filter fields are optional; o
 
 ## POST /tools/get_recommendations
 
-Retrieve TMDB's movie recommendations for a given movie.
+Retrieve TMDB recommendations for a given movie.
 
 **Request:**
 ```json
-{
-  "movie_id": 550   // required, integer
-}
+{ "movie_id": 550 }
 ```
 
 **Response 200:**
 ```json
 {
   "results": [
-    {
-      "id": 807,
-      "title": "Se7en",
-      "year": 1995,
-      "overview": "Two detectives...",
-      "poster_url": "https://image.tmdb.org/t/p/w500/69Sns8WoET6CfaYlIkHbla4l7nC.jpg",
-      "rating": 8.3
-    }
+    { "id": 807, "title": "Se7en", "year": 1995, "overview": "...", "poster_url": "...", "rating": 8.3 }
   ]
 }
 ```
 
-> Returns an empty `results` array when TMDB has no recommendations for the given movie.
-
 **Errors:**
 | Code | HTTP Status | Condition |
 |---|---|---|
-| `VALIDATION_ERROR` | 400 | `movie_id` is missing or not a number |
+| `VALIDATION_ERROR` | 400 | `movie_id` missing or not a number |
 | `NOT_FOUND` | 404 | Movie does not exist on TMDB |
 | `RATE_LIMITED` | 429 | TMDB upstream rate limit reached |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -206,27 +195,18 @@ Retrieve TMDB's movie recommendations for a given movie.
 
 ## POST /tools/get_trending
 
-Retrieve currently trending movies for a given time window.
+Retrieve currently trending movies.
 
 **Request:**
 ```json
-{
-  "window": "day"   // required, "day" or "week"
-}
+{ "window": "day" }
 ```
 
 **Response 200:**
 ```json
 {
   "results": [
-    {
-      "id": 1022789,
-      "title": "Inside Out 2",
-      "year": 2024,
-      "overview": "Teenager Riley's mind headquarters...",
-      "poster_url": "https://image.tmdb.org/t/p/w500/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg",
-      "rating": 7.6
-    }
+    { "id": 1022789, "title": "Inside Out 2", "year": 2024, "overview": "...", "poster_url": "...", "rating": 7.6 }
   ]
 }
 ```
@@ -234,7 +214,7 @@ Retrieve currently trending movies for a given time window.
 **Errors:**
 | Code | HTTP Status | Condition |
 |---|---|---|
-| `VALIDATION_ERROR` | 400 | `window` is missing or not `"day"` / `"week"` |
+| `VALIDATION_ERROR` | 400 | `window` missing or not `"day"` / `"week"` |
 | `RATE_LIMITED` | 429 | TMDB upstream rate limit reached |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
@@ -242,28 +222,23 @@ Retrieve currently trending movies for a given time window.
 
 ## POST /tools/get_movie_id
 
-Resolve a movie title (and optional year) to a TMDB movie ID.
+Resolve a movie title to a TMDB movie ID.
 
 **Request:**
 ```json
-{
-  "query": "Inception",   // required, non-empty
-  "year": 2010            // optional, integer
-}
+{ "query": "Inception", "year": 2010 }
 ```
 
 **Response 200:**
 ```json
-{
-  "movie_id": 27205
-}
+{ "movie_id": 27205 }
 ```
 
 **Errors:**
 | Code | HTTP Status | Condition |
 |---|---|---|
-| `VALIDATION_ERROR` | 400 | `query` is missing or empty |
-| `NO_RESULTS` | 404 | No matching movie found for the given query |
+| `VALIDATION_ERROR` | 400 | `query` missing or empty |
+| `NO_RESULTS` | 404 | No matching movie found |
 | `RATE_LIMITED` | 429 | TMDB upstream rate limit reached |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
@@ -271,30 +246,23 @@ Resolve a movie title (and optional year) to a TMDB movie ID.
 
 ## POST /tools/get_genre_id
 
-Resolve a genre name to its TMDB numeric genre ID. Useful when you want to pass a precise ID to `discover_movies`, or to validate that a genre name is recognised by TMDB.
-
-> Matching is case-insensitive and trims leading/trailing whitespace. If no genre matches, the error message includes the full list of valid genre names.
+Resolve a genre name to its TMDB numeric genre ID.
 
 **Request:**
 ```json
-{
-  "name": "Action"   // required, non-empty string
-}
+{ "name": "Action" }
 ```
 
 **Response 200:**
 ```json
-{
-  "genre_id": 28,
-  "genre_name": "Action"
-}
+{ "genre_id": 28, "genre_name": "Action" }
 ```
 
 **Errors:**
 | Code | HTTP Status | Condition |
 |---|---|---|
-| `VALIDATION_ERROR` | 400 | `name` is missing or empty |
-| `NO_RESULTS` | 404 | No TMDB genre matches the given name |
+| `VALIDATION_ERROR` | 400 | `name` missing or empty |
+| `NO_RESULTS` | 404 | No TMDB genre matches |
 | `RATE_LIMITED` | 429 | TMDB upstream rate limit reached |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
@@ -305,20 +273,10 @@ Resolve a genre name to its TMDB numeric genre ID. Useful when you want to pass 
 | Code | HTTP Status | Meaning |
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | Request body failed schema validation |
-| `NOT_FOUND` | 404 | Requested resource does not exist on TMDB |
+| `NOT_FOUND` | 404 | Resource does not exist on TMDB |
 | `NO_RESULTS` | 404 | Search/lookup returned zero results |
-| `METHOD_NOT_ALLOWED` | 405 | HTTP method not supported for this endpoint |
+| `METHOD_NOT_ALLOWED` | 405 | HTTP method not supported |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | `Content-Type` is not `application/json` |
-| `UNPROCESSABLE_INPUT` | 422 | Semantically invalid input (e.g., `year_from > year_to`) |
+| `UNPROCESSABLE_INPUT` | 422 | Semantically invalid input |
 | `RATE_LIMITED` | 429 | TMDB upstream rate limit reached |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
-
----
-
-## Notes
-
-- The `Retry-After` response header is propagated on `429 RATE_LIMITED` responses when provided by TMDB.
-- Tool endpoints (`POST /tools/*`) require `Content-Type: application/json`; omitting it returns `415 UNSUPPORTED_MEDIA_TYPE`.
-- Sending a non-POST request to a tool endpoint returns `405 METHOD_NOT_ALLOWED`.
-- `poster_url` is `null` when TMDB does not provide a poster image for the movie.
-- `year` is `null` when TMDB does not provide a `release_date` for the movie.
