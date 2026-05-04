@@ -1,8 +1,10 @@
 # Architecture — Movie Agent MCP
 
 ```mermaid
-graph TB
+graph LR
     User([User])
+    Gemini[(Gemini API)]
+    TMDB[(TMDB API)]
 
     subgraph Frontend["Chat Frontend (port 5173)"]
         direction TB
@@ -12,17 +14,17 @@ graph TB
         UI --> Hook --> Reducer
     end
 
-    subgraph Agent["Agent Backend (port 8000)<br/><i>secret: GEMINI_API_KEY</i>"]
+    subgraph Agent["Agent Backend (port 8000)"]
         direction TB
         ChatEndpoint[POST /chat]
-        ToolLoader[Tool Loader]
         Executor[LangChain AgentExecutor]
+        ToolLoader[Tool Loader]
         MovieExtractor[Movie Extractor]
         ChatEndpoint --> Executor
         Executor --> MovieExtractor
     end
 
-    subgraph MCP["MCP Server (port 3000)<br/><i>secret: TMDB_API_KEY</i>"]
+    subgraph MCP["MCP Server (port 3000)"]
         direction TB
         Discovery[GET /tools]
         ToolEndpoints[POST /tools/:name]
@@ -31,15 +33,12 @@ graph TB
         ToolEndpoints --> Normalizer --> TMDBClient
     end
 
-    TMDB[(TMDB API)]
-    Gemini[(Gemini API)]
-
     User -->|chat| Frontend
     Frontend -->|"POST /chat (SSE)"| ChatEndpoint
     Executor -.->|LLM calls| Gemini
     Executor -->|"POST /tools/:name"| ToolEndpoints
-    TMDBClient -->|REST| TMDB
     ToolLoader -.->|"GET /tools (at startup)"| Discovery
+    TMDBClient -->|REST| TMDB
 
     classDef frontend fill:#1e1e2a,stroke:#6366f1,color:#ededf2
     classDef agent fill:#1e1e2a,stroke:#22c55e,color:#ededf2
