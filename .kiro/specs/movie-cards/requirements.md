@@ -48,7 +48,7 @@ Extend the Agent Backend's `/chat` response to include structured movie data alo
 1. THE Movie_Extractor SHALL expose a function `extract_movies(intermediate_steps, llm_content, max_count=5)` that accepts the Intermediate_Steps list, the LLM_Content string, and returns a `list[Movie]`.
 2. THE Movie_Extractor SHALL iterate Intermediate_Steps in invocation order and extract movies only from steps where the tool name is in the set {`search_movies`, `discover_movies`, `get_recommendations`, `get_trending`}.
 3. THE Movie_Extractor SHALL parse each qualifying tool output's `results` array and map each entry to a Movie object.
-4. THE Movie_Extractor SHALL include a movie in the result only when the movie's title appears as a substring within the LLM_Content (case-insensitive match).
+4. THE Movie_Extractor SHALL include a movie in the result only when the movie's full title appears as a complete phrase within the LLM_Content (case-insensitive exact phrase title filtering against LLM_Content).
 5. THE Movie_Extractor SHALL order the returned movies by the position of their first title mention in the LLM_Content (earliest mention first).
 6. THE Movie_Extractor SHALL deduplicate movies by `id`, preserving the first-seen occurrence based on LLM_Content mention order.
 7. THE Movie_Extractor SHALL return at most `max_count` movies.
@@ -128,7 +128,7 @@ Extend the Agent Backend's `/chat` response to include structured movie data alo
 
 #### Acceptance Criteria
 
-1. THE test suite SHALL include unit tests for `extract_movies` covering: mixed tool calls (movie-returning and non-movie-returning), deduplication by `id`, title filtering against LLM_Content, `max_count` enforcement, and graceful handling of errored or malformed tool outputs.
+1. THE test suite SHALL include unit tests for `extract_movies` covering: mixed tool calls (movie-returning and non-movie-returning), deduplication by `id`, exact phrase title filtering against LLM_Content, `max_count` enforcement, and graceful handling of errored or malformed tool outputs.
 2. THE test suite SHALL include a property-based test verifying that for any valid list of Intermediate_Steps and LLM_Content, `extract_movies` returns at most `max_count` movies, all returned movie `id` values are unique, and every returned movie's title appears in the LLM_Content.
 3. THE test suite SHALL include an integration test for the JSON `/chat` endpoint asserting that the `movies` field is present in the response.
 4. THE test suite SHALL include an integration test for the SSE `/chat` endpoint asserting that the `movies` event is emitted in the correct position in the stream when movies are present, and omitted when no movies are present.

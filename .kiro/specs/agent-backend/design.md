@@ -491,7 +491,7 @@ def _find_title_position(title: str, llm_content_lower: str) -> int:
 The extraction follows a five-phase pipeline:
 
 1. **Collect candidates** — Iterate `intermediate_steps` in invocation order. For each step whose `action.tool` is in `MOVIE_TOOLS`, parse the raw JSON output, skip error envelopes and malformed entries, and map each entry in the `results` array to a `Movie` object.
-2. **Filter by title presence** — For each candidate movie, perform a case-insensitive substring search (`str.find()`) for the movie's title within the LLM content. Only movies whose titles appear in the prose are kept, along with their first-mention position.
+2. **Filter by title presence** — For each candidate movie, perform a case-insensitive exact phrase match using regex word boundaries for the movie's full title within the LLM content. The title must appear as a complete phrase (not as a substring of a longer word). Only movies whose full titles appear in the prose are kept, along with their first-mention position.
 3. **Sort by first mention** — Sort the filtered movies by their first-mention position in the LLM content (earliest first), so card order matches reading order.
 4. **Deduplicate by ID** — Walk the sorted list and keep only the first occurrence of each movie `id` (first-seen wins).
 5. **Cap at max_count** — Truncate the result to at most `max_count` entries (default 5).
@@ -508,7 +508,7 @@ The entire function body is wrapped in a `try/except` to guarantee it never rais
 
 | Decision | Rationale |
 |---|---|
-| Title filtering uses case-insensitive substring match (`str.find()`) | Simple, predictable, avoids regex complexity and false negatives from word-boundary matching |
+| Title filtering uses case-insensitive exact phrase match (regex with word boundaries) | Prevents false positives from partial substring matches (e.g., "Mummy" matching inside "The Mummy"). The full title must appear as a standalone phrase. |
 | Ordering by first mention position in LLM content | Cards appear in the same order the user reads them in the prose |
 | Deduplication by `id` (first-seen wins) | A movie may appear in multiple tool results (e.g., search + recommendations); keep the first by mention order |
 | `max_count` defaults to 5 | Keeps the UI manageable; configurable per call for future flexibility |

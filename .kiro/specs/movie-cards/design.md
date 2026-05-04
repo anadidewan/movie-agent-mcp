@@ -15,7 +15,7 @@ This feature extends the Agent Backend's `/chat` endpoint to return structured m
 
 | Decision | Rationale |
 |---|---|
-| Title filtering uses case-insensitive substring match (`title.lower() in llm_content.lower()`) | Simple, predictable, matches how users read prose. Avoids regex complexity and false negatives from word-boundary matching. |
+| Title filtering uses case-insensitive exact phrase match (regex with word boundaries) | Prevents false positives from partial substring matches (e.g., "Mummy" matching inside "The Mummy"). The full title must appear as a standalone phrase. Slightly more complex than `str.find()` but eliminates a class of false positives that degrade the user experience. |
 | Ordering by first mention position in LLM content | Cards appear in the same order the user reads them in the prose. |
 | Deduplication by `id` (first-seen wins) | A movie may appear in multiple tool results (e.g., search + recommendations). We keep the first occurrence by mention order. |
 | `max_count` defaults to 5 | Keeps the UI manageable. Configurable per call for future flexibility. |
@@ -330,10 +330,11 @@ function extract_movies(intermediate_steps, llm_content, max_count=5):
 
 | Scenario | Behavior |
 |---|---|
-| LLM writes "fight club" but tool returns "Fight Club" | Match — case-insensitive |
-| LLM writes "Se7en is great" and tool returns "Se7en" | Match — substring |
-| Movie title "Up" appears in "I looked **up** some movies" | Match — this is a known limitation of substring matching. Short titles may produce false positives. Accepted trade-off for simplicity. |
-| Movie title contains special regex characters (e.g., "10½") | No issue — we use `str.find()`, not regex |
+| LLM writes "fight club" but tool returns "Fight Club" | Match — case-insensitive exact phrase |
+| LLM writes "Se7en is great" and tool returns "Se7en" | Match — exact phrase with word boundaries |
+| Movie title "Up" appears in "I looked **up** some movies" | Match — "up" appears as a standalone word. Short titles can still produce false positives, but this is less common than with substring matching. |
+| Movie title "Mummy" and prose contains "The Mummy" | No match — "Mummy" is preceded by "The " (a letter), so the word boundary check fails. Only "The Mummy" would match. |
+| Movie title contains special regex characters (e.g., "10½") | Safe — `re.escape()` is applied before matching |
 | LLM content is empty string | No matches — returns `[]` immediately |
 | Same movie from two different tools | Deduplicated by `id` — first mention position wins |
 

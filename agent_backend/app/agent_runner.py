@@ -143,7 +143,7 @@ def build_agent_with_client(
     tool_descriptors: list[ToolDescriptor],
     mcp_client: MCPClient,
     gemini_api_key: str,
-    model_name: str = "gemini-2.5-flash-lite",
+    model_name: str = "gemini-2.5-flash",
 ) -> AgentExecutor:
     """
     Full startup path: build tools, LLM, prompt, and AgentExecutor.
@@ -157,17 +157,17 @@ def build_agent_with_client(
     gemini_api_key : str
         Raw Gemini API key (call SecretStr.get_secret_value() before passing).
     model_name : str
-        Gemini model identifier. Defaults to gemini-1.5-flash.
+        Gemini model identifier. Defaults to gemini-2.5-flash.
     """
     tools = [build_tool(d, mcp_client) for d in tool_descriptors]
 
-    # logger.debug("build_agent", tool_count=len(tools), model=model_name, tool_names=[t.name for t in tools])
-    logger.info("config", key=gemini_api_key) 
+    logger.info("build_agent", tool_count=len(tools), model=model_name, tool_names=[t.name for t in tools])
 
     llm = ChatGoogleGenerativeAI(
         model=model_name,
         google_api_key=gemini_api_key,
         temperature=0.2,
+        thinking_budget=0,  # Disable thinking to avoid thought_signature errors
     )
 
     # Build the system prompt dynamically from the live tool descriptors
@@ -384,6 +384,10 @@ async def astream_run(
 
     intermediate_steps: list[tuple[Any, str]] = []
     full_output = ""
+    token_count = 0
+    event_count = 0
+
+    logger.info("sse_stream_start", user_input=user_input[:200], history_length=len(chat_history))
 
     try:
         async for event in executor.astream_events(
@@ -391,12 +395,16 @@ async def astream_run(
             version="v1",
         ):
             kind = event.get("event", "")
+            event_count += 1
 
             # Stream LLM output tokens
             if kind == "on_chat_model_stream":
                 chunk = event.get("data", {}).get("chunk")
                 if chunk and hasattr(chunk, "content") and chunk.content:
+                    token_count += 1
                     full_output += chunk.content
+                    if token_count <= 3:
+                        logger.debug("sse_token", token_num=token_count, content=chunk.content[:80])
                     payload = json.dumps({"type": "token", "content": chunk.content})
                     yield f"data: {payload}\n\n"
 
@@ -405,6 +413,7 @@ async def astream_run(
                 tool_name = event.get("name", "unknown_tool")
                 tool_input = event.get("data", {}).get("input", {})
                 tool_output = event.get("data", {}).get("output", "")
+                logger.info("sse_tool_end", tool=tool_name, input=tool_input, output_length=len(str(tool_output)))
                 intermediate_steps.append(
                     (
                         _FakeAction(tool=tool_name, tool_input=tool_input),
@@ -412,7 +421,14 @@ async def astream_run(
                     )
                 )
 
+            # Log tool starts too
+            elif kind == "on_tool_start":
+                tool_name = event.get("name", "unknown_tool")
+                tool_input = event.get("data", {}).get("input", {})
+                logger.info("sse_tool_start", tool=tool_name, input=tool_input)
+
     except Exception as exc:
+        logger.error("sse_stream_error", error=str(exc), error_type=type(exc).__name__, token_count=token_count, tool_count=len(intermediate_steps))
         from app.mcp_client import MCPUnavailableError
 
         if isinstance(exc, MCPUnavailableError):
@@ -427,15 +443,28 @@ async def astream_run(
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
 
+    logger.info(
+        "sse_stream_complete",
+        token_count=token_count,
+        event_count=event_count,
+        tool_count=len(intermediate_steps),
+        tools_called=[s[0].tool for s in intermediate_steps],
+        output_length=len(full_output),
+        output_preview=full_output[:200] if full_output else "(empty)",
+    )
+
     # Emit movies event (if any) before tool call trace
     movies = extract_movies(intermediate_steps, full_output)
 
     if movies:
+        logger.info("sse_emit_movies", movie_count=len(movies), titles=[m.title for m in movies])
         movies_payload = json.dumps({
             "type": "movies",
             "movies": [m.model_dump() for m in movies],
         })
         yield f"data: {movies_payload}\n\n"
+    else:
+        logger.debug("sse_no_movies", reason="extract_movies returned empty list")
 
     # Emit tool call trace
     tool_calls = [
@@ -447,6 +476,7 @@ async def astream_run(
         for action, raw_output in intermediate_steps
     ]
 
+    logger.info("sse_emit_tool_calls", count=len(tool_calls), tools=[tc.tool for tc in tool_calls])
     tc_payload = json.dumps(
         {
             "type": "tool_calls",
@@ -454,6 +484,7 @@ async def astream_run(
         }
     )
     yield f"data: {tc_payload}\n\n"
+    logger.info("sse_emit_done")
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 

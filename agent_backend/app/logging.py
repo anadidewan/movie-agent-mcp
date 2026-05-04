@@ -19,23 +19,42 @@ from __future__ import annotations
 
 import logging
 import sys
+from pathlib import Path
 
 import structlog
+
+# Log file path — lives next to the app package so it's easy to find.
+# The file is created/appended on every startup.
+LOG_FILE = Path(__file__).resolve().parent.parent / "agent_debug.log"
 
 
 def configure_logging(log_level: str = "INFO") -> None:
     """
-    Configure structlog for JSON output.
+    Configure structlog for JSON output to both stdout and a log file.
 
     Call this once at application startup (in main.py lifespan).
     Subsequent calls are idempotent.
     """
-    # Configure the standard library logging to route through structlog
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, log_level.upper(), logging.INFO),
-    )
+    level = getattr(logging, log_level.upper(), logging.INFO)
+
+    # Root logger: stdout + file
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    # Remove any existing handlers (idempotent re-calls)
+    root.handlers.clear()
+
+    # stdout handler
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(level)
+    stdout_handler.setFormatter(logging.Formatter("%(message)s"))
+    root.addHandler(stdout_handler)
+
+    # File handler — appends to agent_debug.log
+    file_handler = logging.FileHandler(str(LOG_FILE), mode="a", encoding="utf-8")
+    file_handler.setLevel(logging.DEBUG)  # capture everything in the file
+    file_handler.setFormatter(logging.Formatter("%(message)s"))
+    root.addHandler(file_handler)
 
     structlog.configure(
         processors=[

@@ -28,12 +28,12 @@ Extend the Agent Backend's `/chat` response to include structured movie data. A 
   - [x] 2.2 Write unit tests for `extract_movies` in `agent_backend/tests/unit/test_movie_extractor.py`
     - Test mixed tool calls: movie-returning tools and non-movie-returning tools (e.g., `get_movie_details`) in the same intermediate_steps — only movie-returning tools contribute candidates
     - Test deduplication by `id`: same movie from two different tool calls → only one Movie in result
-    - Test title filtering: movies not mentioned in llm_content are excluded
+    - Test title filtering: movies not mentioned in llm_content are excluded; partial substring matches (e.g., "Mummy" inside "The Mummy") do not produce false positives
     - Test ordering by first mention position in llm_content
     - Test `max_count` enforcement: provide more candidates than max_count, assert result length ≤ max_count
     - Test error resilience: malformed JSON output, missing `results` key, error envelope output, all-errored outputs → returns `[]`
     - Test empty llm_content → returns `[]`
-    - Test case-insensitive title matching
+    - Test case-insensitive exact phrase title matching
     - _Requirements: 10.1_
   - [x] 2.3 Write property test: max_count invariant
     - **Property: max_count invariant**
@@ -47,7 +47,7 @@ Extend the Agent Backend's `/chat` response to include structured movie data. A 
     - **Validates: Requirements 6.1, 10.2**
   - [x] 2.5 Write property test: title-in-content invariant
     - **Property: title-in-content invariant**
-    - For any valid list of intermediate_steps and llm_content, every returned movie's title appears as a case-insensitive substring in llm_content
+    - For any valid list of intermediate_steps and llm_content, every returned movie's full title appears as a case-insensitive exact phrase in llm_content
     - Use Hypothesis to generate intermediate_steps and llm_content with varying overlap
     - **Validates: Requirements 3.4, 10.2**
 

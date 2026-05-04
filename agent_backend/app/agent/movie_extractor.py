@@ -136,8 +136,24 @@ def _parse_movies_from_output(raw_output: str) -> list[Movie]:
 
 
 def _find_title_position(title: str, llm_content_lower: str) -> int:
-    """Return the index of the first case-insensitive occurrence of *title*.
+    """Return the index of the first case-insensitive *exact* occurrence of *title*.
+
+    The title must appear as a complete phrase — not as a substring of a
+    longer word.  For example, "Mummy" will NOT match inside "The Mummy".
+    "The Mummy" will match "the mummy" (case-insensitive).
+
+    Uses ``re.search`` with escaped title and word-boundary-like checks
+    (non-alphanumeric or string boundary on both sides).
 
     Returns ``-1`` if not found.
     """
-    return llm_content_lower.find(title.lower())
+    import re
+
+    # Escape special regex characters in the title
+    pattern = re.escape(title.lower())
+    # Require non-alphanumeric (or string boundary) on both sides
+    # This ensures "Mummy" doesn't match inside "The Mummy"
+    # but "The Mummy" matches "the mummy" as a standalone phrase
+    full_pattern = rf"(?<![a-z0-9]){pattern}(?![a-z0-9])"
+    match = re.search(full_pattern, llm_content_lower)
+    return match.start() if match else -1
