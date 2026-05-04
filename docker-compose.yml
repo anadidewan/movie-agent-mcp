@@ -1,0 +1,47 @@
+services:
+  mcp-server:
+    build: ./mcp_server
+    ports:
+      - "3000:3000"
+    environment:
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - NODE_ENV=production
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  agent-backend:
+    build: ./agent_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MCP_BASE_URL=http://mcp-server:3000
+      - FRONTEND_ORIGIN=http://localhost:5173
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./chat_frontend
+      args:
+        - VITE_AGENT_BASE_URL=http://localhost:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      agent-backend:
+        condition: service_healthy
+    restart: unless-stopped

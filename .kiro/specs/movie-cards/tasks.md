@@ -21,7 +21,7 @@ Extend the Agent Backend's `/chat` response to include structured movie data. A 
     - Define `MOVIE_TOOLS` frozenset: `{"search_movies", "discover_movies", "get_recommendations", "get_trending"}`
     - Implement `extract_movies(intermediate_steps, llm_content, max_count=5) -> list[Movie]`
     - Implement `_parse_movies_from_output(raw_output: str) -> list[Movie]` helper that parses JSON, skips error envelopes, skips missing/non-list `results`, and maps entries to `Movie` objects
-    - Implement `_find_title_position(title: str, llm_content_lower: str) -> int` helper using `str.find()`
+    - Implement `_find_title_position(title: str, llm_content_lower: str) -> int` helper using `str.find()`[Later fixed with exact string matching agains LLM]
     - Algorithm: collect candidates from qualifying tool steps → filter by title presence in llm_content (case-insensitive) → sort by first mention position → deduplicate by id (first-seen wins) → cap at max_count
     - Wrap entire function body in try/except to guarantee no exceptions propagate to caller
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 6.1, 6.2, 6.3, 7.1, 7.2, 7.3, 8.1, 8.2, 8.3, 8.4, 8.5_

@@ -1,17 +1,42 @@
+# Environment files (secrets)
 .env
 .env.local
 .env.*.local
+
+# Node.js
 node_modules/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
 .venv/
 venv/
+*.egg-info/
+
+# Build outputs
 dist/
 build/
 .next/
+
+# Test caches
 .pytest_cache/
 .hypothesis/
+coverage/
+
+# IDE / editor
 .vscode/
 .idea/
+.cursor/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
+
+# Lock files (per-service, not root)
 pnpm-lock.yaml
