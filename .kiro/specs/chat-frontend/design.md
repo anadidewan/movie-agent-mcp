@@ -69,7 +69,7 @@ sequenceDiagram
     participant SSEParser as SSE Parser
     participant Backend as Agent Backend
 
-    User->>InputBox: Types message, presses Cmd+Enter
+    User->>InputBox: Types message, presses Enter
     InputBox->>useChat: sendMessage(text)
     useChat->>Reducer: dispatch(ADD_USER_MESSAGE)
     useChat->>Reducer: dispatch(START_ASSISTANT_MESSAGE)
@@ -585,8 +585,8 @@ export interface InputBoxProps {
 /**
  * Multiline textarea with send button.
  * - Auto-grows up to ~6 rows
- * - Cmd+Enter (macOS) / Ctrl+Enter sends
- * - Enter without modifier inserts newline
+ * - Enter sends the message
+ * - Shift+Enter inserts a newline
  * - Send button disabled while streaming (disabled prop)
  * - Clears and refocuses after send
  */

@@ -298,7 +298,7 @@ Implement a Node.js/TypeScript Express microservice that wraps the TMDB REST API
     - Capture pino log output; assert each log entry contains `method`, `url`, and `statusCode` fields
 
 - [x] 13. Checkpoint — all tests passing
-  - Run the full test suite (`npm test`) and ensure all unit, property, and integration tests pass
+  - Run the full test suite (`pnpm test`) and ensure all unit, property, and integration tests pass
   - Run `npx tsc --noEmit` to confirm zero TypeScript errors
   - Ask the user if any questions arise before proceeding to documentation and containerization.
 
@@ -310,12 +310,12 @@ Implement a Node.js/TypeScript Express microservice that wraps the TMDB REST API
     - _Requirements: 8.1, 10.1_
 
   - [x] 14.2 Create `README.md` at project root
-    - Cover: overview, prerequisites (Node.js 20+, TMDB API key), environment variables (`TMDB_API_KEY`, `PORT`, `NODE_ENV`), local setup steps, Docker run instructions, `npm test` command, curl examples for all 8 endpoints, tool reference summary, link to design.md
+    - Cover: overview, prerequisites (Node.js 20+, pnpm, TMDB API key), environment variables (`TMDB_API_KEY`, `PORT`, `NODE_ENV`), local setup steps, Docker run instructions, `pnpm test` command, curl examples for all 8 endpoints, tool reference summary, link to design.md
     - _Requirements: 14.1, 14.2, 14.3_
 
   - [x] 14.3 Create `Dockerfile`
     - Use `node:20-alpine` as base image
-    - Copy `package*.json`, run `npm ci --omit=dev`
+    - Copy `package.json` and `pnpm-lock.yaml`, run `pnpm install --frozen-lockfile --prod`
     - Copy compiled output from `dist/`
     - Accept `TMDB_API_KEY` as a runtime `ENV` variable — do NOT bake it in at build time
     - `EXPOSE` the configured port (default 3000)
@@ -323,7 +323,7 @@ Implement a Node.js/TypeScript Express microservice that wraps the TMDB REST API
     - _Requirements: 14.1, 14.2, 14.3, 14.4_
 
 - [x] 15. Final checkpoint — build and smoke test
-  - Run `npm run build` to compile TypeScript to `dist/`
+  - Run `pnpm run build` to compile TypeScript to `dist/`
   - Run the full test suite one final time to confirm everything passes
   - Verify the Dockerfile builds successfully with `docker build -t tmdb-mcp-server .`
   - Ask the user if any questions arise.

@@ -6,7 +6,7 @@ A Node.js/TypeScript Express microservice that wraps the [TMDB (The Movie Databa
 
 ## Prerequisites
 
-- **Node.js 20+** (or Docker)
+- **Node.js 20+** and **pnpm** (or Docker)
 - **TMDB API key** — obtain one for free at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)
 
 ---
@@ -25,18 +25,18 @@ A Node.js/TypeScript Express microservice that wraps the [TMDB (The Movie Databa
 
 ```bash
 # 1. Install dependencies
-npm install
+pnpm install
 
 # 2. Configure environment
 cp .env.example .env
 # Edit .env and set TMDB_API_KEY=your_key_here
 
 # 3. Start in development mode (hot reload)
-npm run dev
+pnpm run dev
 
 # 4. Or build and run the compiled output
-npm run build
-npm start
+pnpm run build
+pnpm start
 ```
 
 The server will be available at `http://localhost:3000`.
@@ -61,7 +61,7 @@ docker run -p 8080:8080 -e TMDB_API_KEY=your_key_here -e PORT=8080 tmdb-mcp-serv
 ## Running Tests
 
 ```bash
-npm test
+pnpm test
 ```
 
 This runs the full suite: unit tests, property-based tests (fast-check), and integration tests (supertest with mocked Axios).

@@ -9,36 +9,25 @@ describe("InputBox", () => {
     expect(screen.getByRole("button", { name: /send/i })).toBeInTheDocument();
   });
 
-  it("calls onSend with trimmed content on Cmd+Enter and clears the textarea", () => {
+  it("calls onSend with trimmed content on Enter and clears the textarea", () => {
     const onSend = vi.fn();
     render(<InputBox onSend={onSend} disabled={false} />);
     const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
 
     fireEvent.change(textarea, { target: { value: "  hello world  " } });
-    fireEvent.keyDown(textarea, { key: "Enter", metaKey: true });
+    fireEvent.keyDown(textarea, { key: "Enter" });
 
     expect(onSend).toHaveBeenCalledWith("hello world");
     expect(textarea.value).toBe("");
   });
 
-  it("calls onSend with trimmed content on Ctrl+Enter", () => {
-    const onSend = vi.fn();
-    render(<InputBox onSend={onSend} disabled={false} />);
-    const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
-
-    fireEvent.change(textarea, { target: { value: "hi" } });
-    fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true });
-
-    expect(onSend).toHaveBeenCalledWith("hi");
-  });
-
-  it("does not send on plain Enter (allows newline)", () => {
+  it("does not send on Shift+Enter (allows newline)", () => {
     const onSend = vi.fn();
     render(<InputBox onSend={onSend} disabled={false} />);
     const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
 
     fireEvent.change(textarea, { target: { value: "line1" } });
-    fireEvent.keyDown(textarea, { key: "Enter" });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
 
     expect(onSend).not.toHaveBeenCalled();
   });
@@ -49,7 +38,7 @@ describe("InputBox", () => {
     const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
 
     fireEvent.change(textarea, { target: { value: "   " } });
-    fireEvent.keyDown(textarea, { key: "Enter", metaKey: true });
+    fireEvent.keyDown(textarea, { key: "Enter" });
 
     expect(onSend).not.toHaveBeenCalled();
   });
@@ -64,13 +53,13 @@ describe("InputBox", () => {
     expect(screen.getByRole("textbox")).toBeDisabled();
   });
 
-  it("does not send on Cmd+Enter when disabled", () => {
+  it("does not send on Enter when disabled", () => {
     const onSend = vi.fn();
     render(<InputBox onSend={onSend} disabled={true} />);
     const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
 
     fireEvent.change(textarea, { target: { value: "hello" } });
-    fireEvent.keyDown(textarea, { key: "Enter", metaKey: true });
+    fireEvent.keyDown(textarea, { key: "Enter" });
 
     expect(onSend).not.toHaveBeenCalled();
   });

@@ -159,8 +159,8 @@ Reelify is a single-page React + TypeScript chat application that consumes the A
 
 1. THE Input_Box SHALL render a multiline textarea that auto-grows up to a maximum of approximately 6 rows.
 2. THE Input_Box SHALL render a send button that is disabled while a request or stream is in flight.
-3. WHEN the user presses Cmd+Enter (macOS) or Ctrl+Enter (other platforms), THE Input_Box SHALL send the current message.
-4. WHEN the user presses Enter without a modifier key, THE Input_Box SHALL insert a newline.
+3. WHEN the user presses Enter without a modifier key, THE Input_Box SHALL send the current message.
+4. WHEN the user presses Shift+Enter, THE Input_Box SHALL insert a newline.
 5. WHEN a message is sent, THE Input_Box SHALL clear its content and refocus the textarea.
 
 ### Requirement 12: Error Handling

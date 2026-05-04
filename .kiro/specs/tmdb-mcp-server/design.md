@@ -783,9 +783,9 @@ The `README.md` should be created at the project root and cover:
    - `NODE_ENV` (optional, `development` for pretty logs)
 4. **Local Setup**
    ```bash
-   npm install
+   pnpm install
    cp .env.example .env   # add TMDB_API_KEY
-   npm run dev
+   pnpm run dev
    ```
 5. **Running with Docker**
    ```bash
@@ -794,7 +794,7 @@ The `README.md` should be created at the project root and cover:
    ```
 6. **Running Tests**
    ```bash
-   npm test
+   pnpm test
    ```
 7. **curl Examples** — one per tool endpoint, plus health and discovery
 8. **Tool Reference** — brief description of each tool with input/output summary

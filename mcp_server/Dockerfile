@@ -3,23 +3,29 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Copy package files and install all dependencies (including devDependencies for tsc)
-COPY package*.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # Copy source and compile TypeScript
 COPY tsconfig.json ./
 COPY src/ ./src/
-RUN npm run build
+RUN pnpm run build
 
 # ---- Production stage ----
 FROM node:20-alpine AS production
 
 WORKDIR /app
 
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Copy package files and install production dependencies only
-COPY package*.json ./
-RUN npm ci --omit=dev
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 # Copy compiled output from the build stage
 COPY --from=builder /app/dist ./dist

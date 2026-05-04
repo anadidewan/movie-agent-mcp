@@ -8,8 +8,8 @@ export interface InputBoxProps {
 /**
  * Multiline textarea with send button.
  * - Auto-grows up to ~6 rows using a ref to adjust height on input.
- * - Cmd+Enter (macOS) / Ctrl+Enter sends the message.
- * - Enter without modifier inserts a newline (default behavior).
+ * - Enter sends the message.
+ * - Shift+Enter inserts a newline.
  * - Send button disabled while streaming (disabled prop).
  * - Clears and refocuses textarea after send.
  */
@@ -19,12 +19,9 @@ export function InputBox({ onSend, disabled }: InputBoxProps): ReactNode {
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
-    // Reset to auto so scrollHeight recalculates correctly when content shrinks
     el.style.height = "auto";
-    // Cap at ~6 rows. One row is roughly 24px (1.5rem line-height), so 6 rows ≈ 144px.
     const maxHeight = 144;
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
-    // Show scrollbar only when content exceeds the cap
     el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
   }, []);
 
@@ -35,7 +32,6 @@ export function InputBox({ onSend, disabled }: InputBoxProps): ReactNode {
     if (!value) return;
     onSend(value);
     el.value = "";
-    // Reset height after clearing
     el.style.height = "auto";
     el.style.overflowY = "hidden";
     el.focus();
@@ -50,11 +46,11 @@ export function InputBox({ onSend, disabled }: InputBoxProps): ReactNode {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !disabled) {
+      if (e.key === "Enter" && !e.shiftKey && !disabled) {
         e.preventDefault();
         send();
       }
-      // Plain Enter inserts a newline — default textarea behavior, no action needed.
+      // Shift+Enter falls through to default behavior (inserts newline)
     },
     [disabled, send],
   );
@@ -65,7 +61,7 @@ export function InputBox({ onSend, disabled }: InputBoxProps): ReactNode {
         <textarea
           ref={textareaRef}
           className="flex-1 resize-none rounded-lg bg-gray-900 px-3 py-2 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent"
-          placeholder="Type a message… (Cmd+Enter to send)"
+          placeholder="Type a message…"
           rows={1}
           disabled={disabled}
           onChange={handleInput}

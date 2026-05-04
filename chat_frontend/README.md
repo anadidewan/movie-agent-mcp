@@ -49,7 +49,7 @@ The agent backend streams events in this order:
 | `ToolCallPill` | Expandable pill showing tool name, input JSON, output summary |
 | `MovieCard` | 140×220px card with poster, title, year, rating |
 | `MovieStrip` | Horizontal scrollable container for MovieCards |
-| `InputBox` | Auto-growing textarea, Cmd/Ctrl+Enter to send |
+| `InputBox` | Auto-growing textarea, Enter to send, Shift+Enter for newline |
 | `ThinkingIndicator` | Pulsing "Thinking…" shown before first token |
 | `ErrorBanner` | Maps error codes to user-friendly messages |
 

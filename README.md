@@ -41,8 +41,8 @@ docker compose up --build
 ```bash
 cd mcp_server
 cp .env.example .env   # add TMDB_API_KEY
-npm install
-npm run dev            # http://localhost:3000
+pnpm install
+pnpm run dev            # http://localhost:3000
 ```
 
 ### Agent Backend (Python / FastAPI)
@@ -94,7 +94,7 @@ movie-agent-mcp/
 
 ## How a Request Flows
 
-1. User types a message in the chat frontend and presses Cmd+Enter.
+1. User types a message in the chat frontend and presses Enter.
 2. Frontend sends `POST /chat` to the agent backend with the full conversation history and `Accept: text/event-stream`.
 3. Agent backend passes the message to the LangChain AgentExecutor bound to Gemini.
 4. Gemini decides which tools to call. For each tool call, the agent backend POSTs to `mcp-server/tools/{name}`.

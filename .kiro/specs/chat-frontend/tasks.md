@@ -66,8 +66,8 @@ Build a single-page React 18 + TypeScript chat application that consumes the Age
   - [x] 4.2 Implement InputBox component
     - Create `src/components/InputBox.tsx` with multiline textarea and send button
     - Auto-grow textarea up to ~6 rows
-    - Cmd+Enter (macOS) / Ctrl+Enter sends the message
-    - Enter without modifier inserts a newline
+    - Enter sends the message
+    - Shift+Enter inserts a newline
     - Send button disabled while `disabled` prop is true (streaming in flight)
     - Clear content and refocus textarea after send
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
@@ -193,7 +193,7 @@ Build a single-page React 18 + TypeScript chat application that consumes the Age
 - [x] 12. Dockerfile, README, and .env.example
   - [x] 12.1 Create Dockerfile
     - Multi-stage build: Node alpine for build stage, nginx alpine for serve stage
-    - Build stage: install deps, run `npm run build`
+    - Build stage: install deps, run `pnpm run build`
     - Serve stage: copy `dist/` to nginx html directory
     - Expose port 80
     - _Requirements: 14.2_
@@ -201,8 +201,8 @@ Build a single-page React 18 + TypeScript chat application that consumes the Age
   - [x] 12.2 Create README
     - Document setup instructions and prerequisites
     - Document environment variables (`VITE_AGENT_BASE_URL`)
-    - Document how to run the dev server (`npm run dev`)
-    - Document how to build for production (`npm run build`)
+    - Document how to run the dev server (`pnpm run dev`)
+    - Document how to build for production (`pnpm run build`)
     - Document how to point at the Agent Backend
     - Document Docker build and run commands
     - _Requirements: 14.3_
