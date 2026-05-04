@@ -1,54 +1,37 @@
 # Architecture — Movie Agent MCP
 
 ```mermaid
-graph LR
-    User([User])
-    Gemini[(Gemini API)]
-    TMDB[(TMDB API)]
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '16px'}, 'flowchart': {'nodeSpacing': 30, 'rankSpacing': 50}}}%%
+flowchart TD
+    User([User]) -->|chat| Frontend
 
-    subgraph Frontend["Chat Frontend (port 5173)"]
-        direction TB
-        UI[React UI]
-        Hook[useChat Hook]
-        Reducer[Chat Reducer]
-        UI --> Hook --> Reducer
+    subgraph Frontend["Chat Frontend · port 5173"]
+        UI[React UI] --> Hook[useChat Hook] --> Reducer[Chat Reducer]
     end
 
-    subgraph Agent["Agent Backend (port 8000)"]
-        direction TB
-        ChatEndpoint[POST /chat]
-        Executor[LangChain AgentExecutor]
-        ToolLoader[Tool Loader]
-        MovieExtractor[Movie Extractor]
-        ChatEndpoint --> Executor
-        Executor --> MovieExtractor
+    Frontend -->|"POST /chat (SSE)"| Agent
+
+    subgraph Agent["Agent Backend · port 8000"]
+        ChatEndpoint[POST /chat] --> Executor[LangChain AgentExecutor]
+        Executor --> MovieExtractor[Movie Extractor]
+        Executor --> ToolLoader[Tool Loader]
     end
 
-    subgraph MCP["MCP Server (port 3000)"]
-        direction TB
+    Agent -->|"POST /tools/:name  ·  GET /tools (startup)"| MCP
+
+    subgraph MCP["MCP Server · port 3000"]
         Discovery[GET /tools]
-        ToolEndpoints[POST /tools/:name]
-        Normalizer[Response Normalizer]
-        TMDBClient[TMDB HTTP Client]
-        ToolEndpoints --> Normalizer --> TMDBClient
+        ToolEndpoints[POST /tools/:name] --> Normalizer[Response Normalizer] --> TMDBClient[TMDB HTTP Client]
     end
 
-    User -->|chat| Frontend
-    Frontend -->|"POST /chat (SSE)"| ChatEndpoint
-    Executor -.->|LLM calls| Gemini
-    Executor -->|"POST /tools/:name"| ToolEndpoints
-    ToolLoader -.->|"GET /tools (at startup)"| Discovery
-    TMDBClient -->|REST| TMDB
+    Executor -.->|LLM calls| Gemini[(Gemini API)]
+    TMDBClient -->|REST| TMDB[(TMDB API)]
 
-    classDef frontend fill:#1e1e2a,stroke:#6366f1,color:#ededf2
-    classDef agent fill:#1e1e2a,stroke:#22c55e,color:#ededf2
-    classDef mcp fill:#1e1e2a,stroke:#f59e0b,color:#ededf2
-    classDef external fill:#0a0a0f,stroke:#6b6b80,color:#9494a8
-
-    class Frontend frontend
-    class Agent agent
-    class MCP mcp
-    class TMDB,Gemini external
+    style Frontend fill:#1e1e2a,stroke:#6366f1,color:#ededf2
+    style Agent fill:#1e1e2a,stroke:#22c55e,color:#ededf2
+    style MCP fill:#1e1e2a,stroke:#f59e0b,color:#ededf2
+    style Gemini fill:#0a0a0f,stroke:#6b6b80,color:#9494a8
+    style TMDB fill:#0a0a0f,stroke:#6b6b80,color:#9494a8
 ```
 
 ## Trust Boundaries
